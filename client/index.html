@@ -1,70 +1,83 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Document</title>
-</head>
-<body>
-    <canvas id="myCanvas" width="800px" height="500px" style="background-color: aqua;"></canvas>
+    <style>
+      body {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+      }
+      .myCanvas {
+        border: 2px solid black;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="myCanvas" width="800" height="500" class="myCanvas"></canvas>
     <script src="/socket.io/socket.io.js"></script>
     <script>
+      const canvas = document.getElementById("myCanvas");
+      const ctx = canvas.getContext("2d");
+      const socket = io();
+      let myPlayer;
+      let cameraOffsetX = 0;
+      let cameraOffsetY = 0;
 
-    function drawBall(data){
-        ctx.beginPath();
-        ctx.arc(data[data.length-1].x,data[data.length-1].y,20,0,2*Math.PI,true);
-        ctx.fillStyle = 'black';
-        ctx.fill();
-        ctx.stroke();
-    }
-    function drawPaddle(x,y){
-        ctx.beginPath();
-        ctx.rect(x,y,20,100);
-        ctx.fillStyle = 'black';
-        ctx.fill();
-        ctx.stroke();
-    }
-        const canvas = document.getElementById('myCanvas');
-        const ctx = canvas.getContext('2d');
-        ctx.font = '30px Arial';
-        const socket = io();
-        socket.on('newPos',(data)=>{
-            ctx.clearRect(0,0,800,500);
+      socket.on("newPos", (data) => {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        myPlayer = data.playerState.find((p) => p.self);
+        if (!myPlayer) return;
 
-            for(let i = 0; i<data.length-1; i++){
-                drawPaddle(data[i].x,data[i].y)
-            }
-            drawBall(data);
+        cameraOffsetX = myPlayer.x - canvas.width / 2 + 15;
+        cameraOffsetY = myPlayer.y - canvas.height / 2 + 15;
 
-        })
-        // socket.on("playerScore",(data)=>{
-        //     console.log(data)
-        // })
-        document.onkeydown = (event) =>{
-            // if(event.keyCode === 68){
-            //     socket.emit('keypress',{inputId:'right',state:true});
-            // }else 
-            if(event.keyCode === 83){
-                socket.emit('keypress',{inputId:'down',state:true});
-                //ctx.translate(0,-10)
-            // }else if(event.keyCode === 65){
-            //     socket.emit('keypress',{inputId:'left',state:true});
-            }else if(event.keyCode === 87){
-                socket.emit('keypress',{inputId:'up',state:true});
-                //ctx.translate(0,10)
-            }
-        }
-        document.onkeyup = (event) =>{
-            if(event.keyCode === 68){
-                socket.emit('keypress',{inputId:'right',state:false});
-            }else if(event.keyCode === 83){
-                socket.emit('keypress',{inputId:'down',state:false});
-            }else if(event.keyCode === 65){
-                socket.emit('keypress',{inputId:'left',state:false});
-            }else if(event.keyCode === 87){
-                socket.emit('keypress',{inputId:'up',state:false});
-            }
-        }
+        data.playerState.forEach((player) => {
+          const screenX = player.x - cameraOffsetX;
+          const screenY = player.y - cameraOffsetY;
+
+          ctx.fillStyle = player.self ? "red" : "blue";
+          ctx.fillRect(screenX, screenY, 30, 30);
+        });
+        data.bullets.forEach((bullet) => {
+          ctx.fillStyle = "black";
+          ctx.fillRect(
+            bullet.x - cameraOffsetX,
+            bullet.y - cameraOffsetY,
+            14,
+            14
+          );
+        });
+      });
+
+      document.addEventListener("keydown", (e) => {
+        const map = { w: "up", a: "left", s: "down", d: "right" };
+        const input = map[e.key.toLowerCase()];
+        if (input) socket.emit("keypress", { inputId: input, state: true });
+      });
+
+      document.addEventListener("keyup", (e) => {
+        const map = { w: "up", a: "left", s: "down", d: "right" };
+        const input = map[e.key.toLowerCase()];
+        if (input) socket.emit("keypress", { inputId: input, state: false });
+      });
+
+      canvas.addEventListener("click", (e) => {
+        const rect = canvas.getBoundingClientRect();
+
+        // Canvas coordinates (relative to top-left of canvas)
+        const canvasX = e.clientX - rect.left;
+        const canvasY = e.clientY - rect.top;
+
+        // Convert to game world coordinates by adding camera offset
+        const worldX = canvasX + cameraOffsetX;
+        const worldY = canvasY + cameraOffsetY;
+
+        // Now emit the world coordinates of the click
+        socket.emit("shoot", { x: worldX, y: worldY, player: myPlayer });
+      });
     </script>
-</body>
+  </body>
 </html>
