@@ -22,9 +22,15 @@
       const canvas = document.getElementById("myCanvas");
       const ctx = canvas.getContext("2d");
       const socket = io();
+      let worldMap;
       let myPlayer;
       let cameraOffsetX = 0;
       let cameraOffsetY = 0;
+      const tileSize = 50;
+
+      socket.on("initGameWorld", (data) => {
+        worldMap = data;
+      });
 
       socket.on("newPos", (data) => {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -33,6 +39,18 @@
 
         cameraOffsetX = myPlayer.x - canvas.width / 2 + 15;
         cameraOffsetY = myPlayer.y - canvas.height / 2 + 15;
+
+        worldMap.forEach((row, i) => {
+          row.forEach((cell, j) => {
+            ctx.fillStyle = cell === 1 ? "black" : "green";
+            ctx.fillRect(
+              i * tileSize - cameraOffsetX,
+              j * tileSize - cameraOffsetY,
+              tileSize,
+              tileSize
+            );
+          });
+        });
 
         data.playerState.forEach((player) => {
           const screenX = player.x - cameraOffsetX;

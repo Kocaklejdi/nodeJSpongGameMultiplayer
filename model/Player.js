@@ -1,8 +1,8 @@
 class Player {
-  constructor(id) {
+  constructor(id, x, y) {
     this.id = id;
-    this.x = 50;
-    this.y = 250;
+    this.x = x;
+    this.y = y;
     this.width = 30;
     this.height = 30;
     this.up = false;
